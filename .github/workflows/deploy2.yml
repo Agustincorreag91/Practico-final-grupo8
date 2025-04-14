@@ -1,0 +1,210 @@
+ - name: Terraform Validate
+      working-directory: ./terraform
+      run: terraform validate
+
+    - name: Run YAML Lint
+      uses: ibiqlik/action-yamllint@v3
+      with:
+        file_or_dir: kubernetes/
+        config_file: .yamllint.yml
+
+  deploy:
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.3.0
+    
+    - name: Terraform Init
+      working-directory: ./terraform
+      run: terraform init
+    
+    - name: Terraform Plan
+      working-directory: ./terraform
+      run: terraform plan -out=tfplan
+    
+    - name: Terraform Apply
+      working-directory: ./terraform
+      run: terraform apply -auto-approve tfplan
+    
+    - name: Configure kubectl
+      run: |
+        aws eks update-kubeconfig --name $(terraform -chdir=terraform output -raw eks_cluster_name) --region $(terraform -chdir=terraform output -raw aws_region || echo "us-east-1")
+    
+    - name: Deploy Nginx
+      run: |
+        kubectl apply -f kubernetes/nginx/deployment.yaml
+        kubectl apply -f kubernetes/nginx/service.yaml
+    
+    - name: Deploy EFK Stack
+      run: |
+        kubectl apply -f kubernetes/monitoring/elastic-stack/elasticsearch.yaml
+        kubectl apply -f kubernetes/monitoring/elastic-stack/elasticsearch-service.yaml
+        kubectl apply -f kubernetes/monitoring/elastic-stack/kibana.yaml
+        kubectl apply -f kubernetes/monitoring/elastic-stack/kibana-service.yaml
+        kubectl apply -f kubernetes/monitoring/elastic-stack/fluent-bit-config.yaml
+        kubectl apply -f kubernetes/monitoring/elastic-stack/fluent-bit-rbac.yaml
+        kubectl apply -f kubernetes/monitoring/elastic-stack/fluent-bit.yaml
+    
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.10.0
+    
+    - name: Deploy Prometheus and Grafana
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo update
+        helm install prometheus prometheus-community/kube-prometheus-stack -f kubernetes/monitoring/prometheus-grafana/prometheus-values.yaml
+    
+    - name: Get Access URLs
+      run: |
+        echo "Esperando a que los servicios obtengan direcciones externas..."
+        sleep 60
+        echo "Nginx URL: $(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+        echo "Kibana URL: $(kubectl get svc kibana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):5601"
+        echo "Grafana URL: $(kubectl get svc prometheus-grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+
+# .yamllint.yml
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    level: warning
+  document-start: disable
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+
+# README-detail.md
+# Infraestructura EKS con Monitoreo Completo
+
+Este repositorio implementa una solución completa de monitoreo para un clúster EKS en AWS, incluyendo:
+- Instancia EC2 para administración
+- Clúster EKS con aplicación Nginx
+- Stack de observabilidad completo (EFK + Prometheus/Grafana)
+
+## Arquitectura
+
+![Arquitectura](https://example.com/arquitectura.png)
+
+La arquitectura se compone de:
+
+1. **Capa de Infraestructura AWS**:
+   - Instancia EC2 para manejo administrativo
+   - Clúster EKS para orquestar contenedores
+   - Load Balancers para exponer servicios
+
+2. **Capa de Aplicación**:
+   - Aplicación Nginx como ejemplo
+
+3. **Capa de Observabilidad**:
+   - **Logging**: Elasticsearch + FluentBit + Kibana (EFK)
+   - **Métricas**: Prometheus + Grafana
+   - Dashboards predefinidos para monitoreo de clúster y aplicaciones
+
+## Componentes Detallados
+
+### Instancia EC2
+Una instancia EC2 sirve como punto de administración para el clúster. Incluye todas las herramientas necesarias:
+- AWS CLI
+- kubectl
+- Terraform
+- Helm
+
+### Clúster EKS
+Un clúster Kubernetes administrado por AWS con:
+- Grupos de nodos autogestionados
+- Escalado automático de nodos
+- Políticas de IAM apropiadas
+
+### Nginx
+Aplicación de ejemplo desplegada en el clúster para demostrar el monitoreo.
+
+### Stack EFK
+Para centralización y análisis de logs:
+- **Elasticsearch**: Almacenamiento y búsqueda de logs
+- **FluentBit**: Recolección y forwarding de logs desde contenedores
+- **Kibana**: Visualización y análisis de logs
+
+### Prometheus y Grafana
+Para monitoreo de métricas:
+- **Prometheus**: Recolección y almacenamiento de métricas
+- **Grafana**: Visualización de métricas con dashboards predefinidos
+  - Dashboard de monitoreo de clúster Kubernetes
+  - Dashboard específico para Nginx
+
+## Guía de Uso Detallada
+
+### Pre-requisitos
+- Cuenta AWS con permisos adecuados
+- Terraform ≥ 1.0
+- kubectl ≥ 1.24
+- Helm ≥ 3.9
+- Git
+
+### Configuración Inicial
+1. Clonar el repositorio
+2. Configurar variables en `terraform/terraform.tfvars`
+3. Ejecutar `./scripts/setup.sh`
+
+### Verificación del Despliegue
+1. Comprobar que todos los pods estén en estado "Running":
+   ```bash
+   kubectl get pods --all-namespaces
+   ```
+
+2. Verificar la instalación de Nginx:
+   ```bash
+   kubectl get svc nginx
+   ```
+   Probar accediendo a la URL proporcionada en el output.
+
+3. Acceder a Kibana usando la URL proporcionada para visualizar logs.
+
+4. Acceder a Grafana usando la URL proporcionada:
+   - Usuario: admin
+   - Contraseña: admin
+   - Explorar los dashboards preconfigurados
+
+### Mantenimiento
+- Para actualizar la configuración, modifique los archivos relevantes y vuelva a aplicar.
+- Para escalar la aplicación Nginx:
+  ```bash
+  kubectl scale deployment nginx --replicas=4
+  ```
+
+### Limpieza
+Para eliminar todos los recursos creados:
+```bash
+./scripts/cleanup.sh
+```
+
+## Seguridad
+Esta implementación incluye:
+- Permisos IAM con privilegio mínimo
+- Comunicación segura entre componentes
+- Acceso restringido a los recursos AWS
+
+## Contribuciones
+Las contribuciones son bienvenidas. Por favor:
+1. Haga fork del repositorio
+2. Cree una rama para su feature
+3. Envíe un Pull Request
+
+## Licencia
+MIT
