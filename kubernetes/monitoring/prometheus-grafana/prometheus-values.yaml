@@ -1,0 +1,42 @@
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+  service:
+    type: ClusterIP
+
+grafana:
+  adminPassword: admin
+  service:
+    type: LoadBalancer
+  additionalDataSources:
+    - name: Elasticsearch
+      type: elasticsearch
+      url: http://elasticsearch:9200
+      database: kubernetes_*
+      access: proxy
+      jsonData:
+        timeField: "@timestamp"
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      k8s-cluster-monitoring:
+        gnetId: 12740
+        revision: 1
+        datasource: Prometheus
+      nginx-dashboard:
+        gnetId: 9614
+        revision: 1
+        datasource: Prometheus
