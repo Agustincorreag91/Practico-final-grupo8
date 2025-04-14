@@ -25,6 +25,7 @@ variable "ami_id" {
 variable "key_name" {
   description = "Nombre del key pair para acceder a la instancia"
   type        = string
+  default     = "pin-key.pem"
 }
 
 variable "subnet_id" {
