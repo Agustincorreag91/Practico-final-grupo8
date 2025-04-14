@@ -68,6 +68,7 @@ variable "vpc_id" {
 variable "subnet_ids" {
   description = "Lista de IDs de subnets para el clúster EKS"
   type        = list(string)
+  default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 }
 
 variable "node_group_name" {
