@@ -1,4 +1,5 @@
- - name: Terraform Validate
+# .github/workflows/deploy.yml (continuación)
+    - name: Terraform Validate
       working-directory: ./terraform
       run: terraform validate
 
