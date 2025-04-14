@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "instance_name" {
   description = "Nombre de la instancia EC2"
   type        = string
-  default     = "eks-control-instance"
+  default     = "eks-pin-final-g8"
 }
 
 variable "instance_type" {
@@ -49,7 +49,7 @@ variable "tags" {
 variable "cluster_name" {
   description = "Nombre del clúster EKS"
   type        = string
-  default     = "monitoring-cluster"
+  default     = "cluster-pin-final-g8"
 }
 
 variable "cluster_version" {
@@ -71,7 +71,7 @@ variable "subnet_ids" {
 variable "node_group_name" {
   description = "Nombre del grupo de nodos para el clúster EKS"
   type        = string
-  default     = "monitoring-nodes"
+  default     = "monitoring-nodes-pin-final-g8"
 }
 
 variable "node_instance_types" {
