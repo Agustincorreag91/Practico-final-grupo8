@@ -31,6 +31,7 @@ variable "key_name" {
 variable "subnet_id" {
   description = "ID del subnet donde se desplegará la instancia"
   type        = string
+  default     = "test-pin"
 }
 
 variable "security_groups" {
