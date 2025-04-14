@@ -58,7 +58,8 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          aws eks update-kubeconfig --name $(terraform -chdir=terraform output -raw eks_cluster_name) --region $(terraform -chdir=terraform output -raw aws_region || echo "us-east-1")
+          REGION=$(terraform -chdir=terraform output -raw aws_region || echo "us-east-1")
+          aws eks update-kubeconfig --name $(terraform -chdir=terraform output -raw eks_cluster_name) --region $REGION
 
       - name: Deploy Nginx
         run: |
@@ -89,8 +90,8 @@ jobs:
       - name: Get Access URLs
         run: |
           echo "Esperando a que los servicios obtengan direcciones externas..."
-          sleep 60
-          echo "Nginx URL: $(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+          for i in {1..10}; do
+            kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' && break || sleep 10
+          done
           echo "Kibana URL: $(kubectl get svc kibana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):5601"
           echo "Grafana URL: $(kubectl get svc prometheus-grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
-
