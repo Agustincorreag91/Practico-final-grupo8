@@ -48,7 +48,8 @@ resource "aws_eks_node_group" "this" {
   instance_types  = var.instance_type
 }
 
-  scaling_config {
+  
+# scaling_config {
     desired_size = var.desired_capacity
     max_size     = var.max_size
     min_size     = var.min_size
@@ -59,7 +60,7 @@ resource "aws_eks_node_group" "this" {
     aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
   ]
-}
+
 
 resource "aws_iam_role" "node" {
   name = "${var.cluster_name}-node-role"
