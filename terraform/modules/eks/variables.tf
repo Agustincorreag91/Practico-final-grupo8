@@ -10,7 +10,7 @@ variable "instance_name" {
   default     = "eks-pin-final-g8"
 }
 
-variable "instance_type" {
+variable "instance_types" {
   description = "Tipo de instancia EC2"
   type        = string
   default     = "t3.medium"
