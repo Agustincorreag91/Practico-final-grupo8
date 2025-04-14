@@ -62,6 +62,7 @@ variable "cluster_version" {
 variable "vpc_id" {
   description = "ID del VPC donde se desplegará el clúster"
   type        = string
+  default     = "eks-vpc"
 }
 
 variable "subnet_ids" {
