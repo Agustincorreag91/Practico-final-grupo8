@@ -36,8 +36,7 @@ variable "subnet_id" {
 variable "security_groups" {
   description = "Lista de grupos de seguridad para la instancia"
   type        = list(string)
-  default     = "Pin2"
-}
+  default     = ["pin2"]
 
 variable "tags" {
   description = "Tags para los recursos"
